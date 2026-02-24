@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letra de Cambio Colombia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#eef2f7;
+    padding:20px;
+}
+
+.container{
+    max-width:800px;
+    margin:auto;
+    background:white;
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.1);
+}
+
+h2{
+    text-align:center;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    margin:6px 0;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    background:#1e3a8a;
+    color:white;
+    border:none;
+    font-size:16px;
+    cursor:pointer;
+    border-radius:6px;
+}
+
+button:hover{
+    background:#172554;
+}
+
+canvas{
+    width:100%;
+    height:150px;
+    border:2px solid #ccc;
+    border-radius:8px;
+    margin-top:10px;
+    cursor:crosshair;
+}
+
+.error{
+    color:red;
+    font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>Letra de Cambio - Formato Colombiano</h2>
+
+<input type="text" id="acreedor" placeholder="Nombre del Acreedor">
+<input type="text" id="deudor" placeholder="Nombre del Deudor">
+<input type="text" id="cedulaDeudor" placeholder="Cédula del Deudor">
+<input type="text" id="avalista" placeholder="Nombre del Avalista (Opcional)">
+<input type="text" id="cedulaAvalista" placeholder="Cédula del Avalista (Opcional)">
+<input type="text" id="ciudad" placeholder="Ciudad de emisión">
+<input type="number" id="valor" placeholder="Valor en números">
+<input type="date" id="fechaVencimiento">
+
+<label><strong>Firma del Deudor:</strong></label>
+<canvas id="firmaCanvas"></canvas>
+<button type="button" onclick="limpiarFirma()">Limpiar Firma</button>
+
+<div class="error" id="error"></div>
+
+<button onclick="generarPDF()">Generar PDF</button>
+</div>
+
+<script>
+
+// ===== FIRMA =====
+const canvas = document.getElementById("firmaCanvas");
+const ctx = canvas.getContext("2d");
+let dibujando = false;
+
+canvas.width = canvas.offsetWidth;
+canvas.height = 150;
+
+canvas.addEventListener("mousedown", () => dibujando = true);
+canvas.addEventListener("mouseup", () => {
+    dibujando = false;
+    ctx.beginPath();
+});
+canvas.addEventListener("mousemove", dibujar);
+
+// soporte táctil celular
+canvas.addEventListener("touchstart", (e)=>{
+    e.preventDefault();
+    dibujando = true;
+});
+canvas.addEventListener("touchend", ()=>{
+    dibujando = false;
+    ctx.beginPath();
+});
+canvas.addEventListener("touchmove", (e)=>{
+    e.preventDefault();
+    if(!dibujando) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const y = e.touches[0].clientY - rect.top;
+
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "black";
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+});
+
+function dibujar(e){
+    if(!dibujando) return;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "black";
+
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.offsetX, e.offsetY);
+}
+
+function limpiarFirma(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ===== FORMATEAR FECHA =====
+function formatearFecha(fecha){
+    const opciones = { day: 'numeric', month: 'long', year: 'numeric' };
+    return new Date(fecha).toLocaleDateString('es-CO', opciones);
+}
+
+// ===== FORMATEAR MONEDA =====
+function formatearMoneda(valor){
+    return valor.toLocaleString('es-CO');
+}
+
+// ===== NUMERO A LETRAS =====
+function numeroALetras(num){
+
+    const unidades = ["","UNO","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE"];
+    const especiales = ["DIEZ","ONCE","DOCE","TRECE","CATORCE","QUINCE","DIECISEIS","DIECISIETE","DIECIOCHO","DIECINUEVE"];
+    const decenas = ["","","VEINTE","TREINTA","CUARENTA","CINCUENTA","SESENTA","SETENTA","OCHENTA","NOVENTA"];
+    const centenas = ["","CIENTO","DOSCIENTOS","TRESCIENTOS","CUATROCIENTOS","QUINIENTOS","SEISCIENTOS","SETECIENTOS","OCHOCIENTOS","NOVECIENTOS"];
+
+    function convertirMenorMil(n){
+        let texto = "";
+        if(n == 100) return "CIEN";
+        if(n >= 100){
+            texto += centenas[Math.floor(n/100)] + " ";
+            n %= 100;
+        }
+        if(n >= 10 && n < 20){
+            texto += especiales[n-10];
+            return texto;
+        }
+        if(n >= 20){
+            texto += decenas[Math.floor(n/10)];
+            if(n % 10 !== 0){
+                texto += " Y " + unidades[n%10];
+            }
+            return texto;
+        }
+        if(n > 0){
+            texto += unidades[n];
+        }
+        return texto;
+    }
+
+    if(num === 0) return "CERO";
+
+    if(num < 1000) return convertirMenorMil(num);
+
+    if(num < 1000000){
+        let miles = Math.floor(num/1000);
+        let resto = num % 1000;
+        let textoMiles = miles === 1 ? "MIL" : convertirMenorMil(miles) + " MIL";
+        let textoResto = resto > 0 ? " " + convertirMenorMil(resto) : "";
+        return textoMiles + textoResto;
+    }
+
+    if(num < 1000000000){
+        let millones = Math.floor(num/1000000);
+        let resto = num % 1000000;
+        let textoMillones = millones === 1 ? "UN MILLON" : numeroALetras(millones) + " MILLONES";
+        let textoResto = resto > 0 ? " " + numeroALetras(resto) : "";
+        return textoMillones + textoResto;
+    }
+
+    return "";
+}
+
+// ===== GENERAR PDF =====
+function generarPDF(){
+
+    const acreedor = document.getElementById("acreedor").value;
+    const deudor = document.getElementById("deudor").value;
+    const cedulaDeudor = document.getElementById("cedulaDeudor").value;
+    const avalista = document.getElementById("avalista").value;
+    const cedulaAvalista = document.getElementById("cedulaAvalista").value;
+    const ciudad = document.getElementById("ciudad").value;
+    const valor = parseInt(document.getElementById("valor").value);
+    const fechaVencimiento = document.getElementById("fechaVencimiento").value;
+    const errorDiv = document.getElementById("error");
+
+    if(!acreedor || !deudor || !cedulaDeudor || !ciudad || !valor || !fechaVencimiento){
+        errorDiv.innerText = "Complete todos los campos obligatorios.";
+        return;
+    }
+
+    errorDiv.innerText = "";
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+
+    const valorLetras = numeroALetras(valor);
+    const fechaBonita = formatearFecha(fechaVencimiento);
+
+    doc.setFontSize(18);
+    doc.text("LETRA DE CAMBIO", pageWidth / 2, 25, { align: "center" });
+
+    doc.setFontSize(12);
+
+    let y = 45;
+
+    doc.text(`Ciudad y Fecha: ${ciudad}, ${formatearFecha(new Date())}`, margin, y);
+    y += 15;
+
+    const textoPrincipal = `
+Yo, ${deudor}, identificado con cédula de ciudadanía No. ${cedulaDeudor}, 
+me obligo a pagar incondicionalmente a la orden de ${acreedor} 
+la suma de $${formatearMoneda(valor)} (${valorLetras} PESOS M/CTE), 
+el día ${fechaBonita}, en la ciudad de ${ciudad}.
+
+En caso de mora reconoceré intereses conforme a la ley comercial colombiana.
+`;
+
+    const textoDividido = doc.splitTextToSize(textoPrincipal, maxWidth);
+    doc.text(textoDividido, margin, y);
+    y += textoDividido.length * 7 + 15;
+
+    if(avalista){
+        const textoAval = `
+Como avalista solidario firmo la presente obligación:
+${avalista} - C.C. ${cedulaAvalista}
+`;
+        const avalDividido = doc.splitTextToSize(textoAval, maxWidth);
+        doc.text(avalDividido, margin, y);
+        y += avalDividido.length * 7 + 15;
+    }
+
+    const firmaImagen = canvas.toDataURL("image/png");
+    doc.addImage(firmaImagen, "PNG", margin, y, 80, 30);
+
+    y += 35;
+
+    doc.text("______________________________", margin, y);
+    y += 7;
+    doc.text(deudor, margin, y);
+
+    doc.save("Letra_de_Cambio_Colombia.pdf");
+}
+
+</script>
+
+</body>
+</html>
