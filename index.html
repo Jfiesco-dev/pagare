@@ -236,14 +236,14 @@ function generarPDF(esPremium){
         return;
     }
 
-    const ciudad = ciudad.value;
-    const deudor = deudor.value;
-    const cedulaDeudor = cedulaDeudor.value;
-    const acreedor = acreedor.value;
-    const cedulaAcreedor = cedulaAcreedor.value;
-    const monto = monto.value;
-    const fechaEmision = fechaEmision.value;
-    const fechaVencimiento = fechaVencimiento.value;
+    const ciudad = document.getElementById("ciudad").value;
+    const deudor = document.getElementById("deudor").value;
+    const cedulaDeudor = document.getElementById("cedulaDeudor").value;
+    const acreedor = document.getElementById("acreedor").value;
+    const cedulaAcreedor = document.getElementById("cedulaAcreedor").value;
+    const monto = document.getElementById("monto").value;
+    const fechaEmision = document.getElementById("fechaEmision").value;
+    const fechaVencimiento = document.getElementById("fechaVencimiento").value;
 
     const doc = new jsPDF();
     let y = 20;
@@ -295,6 +295,6 @@ function pagarPremium(){
 
 </body>
 </html>
-</body>
 </html>
+
 
