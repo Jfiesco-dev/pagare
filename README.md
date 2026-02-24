@@ -1,0 +1,270 @@
+[index.html](https://github.com/user-attachments/files/25506450/index.html)
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generador de Pagaré Online</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f4f6f9;
+    display:flex;
+    justify-content:center;
+    padding:40px;
+}
+
+.container{
+    background:#fff;
+    padding:35px;
+    width:460px;
+    border-radius:14px;
+    box-shadow:0 6px 25px rgba(0,0,0,0.08);
+}
+
+h1{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.form-group{
+    position:relative;
+    margin-bottom:22px;
+}
+
+.form-group input{
+    width:100%;
+    padding:22px 14px 10px 14px;
+    border:1px solid #dcdcdc;
+    border-radius:10px;
+    font-size:14px;
+}
+
+.form-group label{
+    position:absolute;
+    top:8px;
+    left:14px;
+    font-size:12px;
+    color:#777;
+    pointer-events:none;
+}
+
+canvas{
+    border:1px solid #ccc;
+    border-radius:10px;
+    width:100%;
+    height:150px;
+    cursor:crosshair;
+}
+
+.clear-btn{
+    margin-top:8px;
+    font-size:12px;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    padding:6px 10px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+button{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:10px;
+    margin-top:12px;
+    font-size:15px;
+    cursor:pointer;
+}
+
+.btn-free{
+    background:#2d89ef;
+    color:#fff;
+}
+
+.btn-premium{
+    background:#28a745;
+    color:#fff;
+}
+
+.legal{
+    margin-top:25px;
+    font-size:11px;
+    color:#666;
+    text-align:justify;
+    line-height:1.4;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>Generador de Pagaré</h1>
+
+<div class="form-group">
+<input type="text" id="ciudad" required>
+<label>Ciudad</label>
+</div>
+
+<div class="form-group">
+<input type="text" id="deudor" required>
+<label>Nombre del Deudor</label>
+</div>
+
+<div class="form-group">
+<input type="text" id="cedulaDeudor" required>
+<label>Cédula del Deudor</label>
+</div>
+
+<div class="form-group">
+<input type="text" id="acreedor" required>
+<label>Nombre del Acreedor</label>
+</div>
+
+<div class="form-group">
+<input type="text" id="cedulaAcreedor" required>
+<label>Cédula del Acreedor</label>
+</div>
+
+<div class="form-group">
+<input type="number" id="monto" required>
+<label>Monto (COP)</label>
+</div>
+
+<div class="form-group">
+<input type="date" id="fechaEmision" required>
+<label>Fecha de emisión</label>
+</div>
+
+<div class="form-group">
+<input type="date" id="fechaVencimiento" required>
+<label>Fecha de vencimiento</label>
+</div>
+
+<label style="font-size:13px;color:#555;">Firma del Deudor:</label>
+<canvas id="firma"></canvas>
+<button class="clear-btn" onclick="limpiarFirma()">Limpiar firma</button>
+
+<button class="btn-free" onclick="generarPDF(false)">
+Descargar PDF Gratis
+</button>
+
+<button class="btn-premium" onclick="pagarPremium()">
+Descargar PDF Premium
+</button>
+
+<div class="legal">
+Este documento corresponde a un modelo básico de pagaré conforme a prácticas comunes en Colombia.
+El usuario es responsable de validar la información suministrada y su validez jurídica.
+Esta herramienta no constituye asesoría legal.
+</div>
+
+</div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+// Fecha automática
+window.onload = function(){
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("fechaEmision").value = hoy;
+};
+
+// FIRMA DIGITAL
+const canvas = document.getElementById("firma");
+const ctx = canvas.getContext("2d");
+let dibujando = false;
+
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
+
+canvas.addEventListener("mousedown", () => dibujando = true);
+canvas.addEventListener("mouseup", () => dibujando = false);
+canvas.addEventListener("mousemove", dibujar);
+
+function dibujar(e){
+    if(!dibujando) return;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000";
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.offsetX, e.offsetY);
+}
+
+function limpiarFirma(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+function formatearFecha(fecha){
+    const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(fecha).toLocaleDateString('es-CO', opciones);
+}
+
+function generarPDF(esPremium){
+
+    const ciudad = document.getElementById("ciudad").value;
+    const deudor = document.getElementById("deudor").value;
+    const cedulaDeudor = document.getElementById("cedulaDeudor").value;
+    const acreedor = document.getElementById("acreedor").value;
+    const cedulaAcreedor = document.getElementById("cedulaAcreedor").value;
+    const monto = document.getElementById("monto").value;
+    const fechaEmision = document.getElementById("fechaEmision").value;
+    const fechaVencimiento = document.getElementById("fechaVencimiento").value;
+
+    const doc = new jsPDF();
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica","bold");
+    doc.text("PAGARÉ",105,y,{align:"center"});
+    y+=20;
+
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(12);
+
+    doc.text(`Ciudad: ${ciudad}`,20,y); y+=8;
+    doc.text(`Fecha de emisión: ${formatearFecha(fechaEmision)}`,20,y); y+=8;
+    doc.text(`Fecha de vencimiento: ${formatearFecha(fechaVencimiento)}`,20,y); y+=15;
+
+    const texto = `
+Yo, ${deudor}, identificado con cédula No. ${cedulaDeudor},
+me obligo de manera clara, expresa e incondicional a pagar
+a favor de ${acreedor}, identificado con cédula No. ${cedulaAcreedor},
+la suma de $${Number(monto).toLocaleString("es-CO")} COP,
+el día ${formatearFecha(fechaVencimiento)}.
+
+Este pagaré presta mérito ejecutivo conforme a la legislación colombiana.
+    `;
+
+    doc.text(texto,20,y,{maxWidth:170});
+    y+=60;
+
+    // Insertar firma
+    const firmaImg = canvas.toDataURL("image/png");
+    doc.text("Firma del Deudor:",20,y);
+    y+=5;
+    doc.addImage(firmaImg,"PNG",20,y,60,30);
+
+    if(!esPremium){
+        doc.setTextColor(200,200,200);
+        doc.setFontSize(40);
+        doc.text("VERSIÓN GRATUITA",35,150,{angle:45});
+    }
+
+    doc.save("Pagare.pdf");
+}
+
+function pagarPremium(){
+    alert("El PDF Premium cuesta $5.000 COP.\n\nPaga por Nequi al 3XX XXX XXXX y envía el comprobante por WhatsApp.");
+    window.open("https://wa.me/573XXXXXXXX?text=Hola%20quiero%20el%20pagare%20premium","_blank");
+}
+</script>
+
+</body>
+</html>
